@@ -1,0 +1,35 @@
+###############################################################################
+# Local development dependencies. Run the apps themselves with pnpm:
+#   docker compose -f docker-compose.dev.yml up -d
+#   pnpm backend:dev
+#   pnpm storefront:dev
+###############################################################################
+
+name: medusa-dev
+
+services:
+
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: medusa
+      POSTGRES_DB: medusa
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8.10.3-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  mailpit:
+    image: axllent/mailpit:v1.33.0
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  postgres_data:

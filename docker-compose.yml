@@ -1,0 +1,260 @@
+###############################################################################
+# Production stack: nginx → storefront + medusa-server, medusa-worker,
+# postgres, redis-queue, redis-cache. Settings come from .env on the host
+# (see .env.example). For local development use docker-compose.dev.yml.
+#
+# Memory limits are sized for a 2 GB VPS with 4 GB swap.
+###############################################################################
+
+name: medusa
+
+x-medusa: &medusa
+  image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+  restart: unless-stopped
+  init: true
+  volumes:
+    - uploads:/app/apps/backend/static
+
+x-medusa-env: &medusa-env
+  NODE_ENV: production
+  TZ: ${TZ:-UTC}
+  DATABASE_URL: postgres://${POSTGRES_USER:-medusa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-medusa}?sslmode=disable
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis-queue:6379
+  CACHE_REDIS_URL: redis://:${REDIS_PASSWORD}@redis-cache:6379
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+  COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET is required}
+  MEDUSA_BACKEND_URL: https://api.${DOMAIN}
+  STORE_CORS: https://${DOMAIN}
+  ADMIN_CORS: https://api.${DOMAIN}
+  AUTH_CORS: https://api.${DOMAIN},https://${DOMAIN}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_REGION: ${S3_REGION:-}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_FILE_URL: ${S3_FILE_URL:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+  SENDGRID_FROM: ${SENDGRID_FROM:-}
+
+services:
+
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medusa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-medusa}
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=512MB
+      -c max_connections=60
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  # Queues, sessions and locks. Evicting these keys loses jobs, so never LRU.
+  redis-queue:
+    image: redis:8.10.3-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 96mb
+      --maxmemory-policy noeviction
+    volumes:
+      - redis_queue_data:/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Disposable cache: no persistence, evicts freely.
+  redis-cache:
+    image: redis:8.10.3-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --save ""
+      --appendonly no
+      --maxmemory 48mb
+      --maxmemory-policy allkeys-lru
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # One-shot: server and worker only start after this exits cleanly.
+  migrate:
+    <<: *medusa
+    restart: "no"
+    command: ["node_modules/.bin/medusa", "db:migrate"]
+    environment:
+      <<: *medusa-env
+      MEDUSA_WORKER_MODE: server
+      DISABLE_MEDUSA_ADMIN: "true"
+      NODE_OPTIONS: --max-old-space-size=512
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis-queue: { condition: service_healthy }
+      redis-cache: { condition: service_healthy }
+    networks: [data]
+
+  medusa-server:
+    <<: *medusa
+    environment:
+      <<: *medusa-env
+      MEDUSA_WORKER_MODE: server
+      DISABLE_MEDUSA_ADMIN: "false"
+      NODE_OPTIONS: --max-old-space-size=512
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [edge, data]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/health | grep -q OK"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  medusa-worker:
+    <<: *medusa
+    environment:
+      <<: *medusa-env
+      MEDUSA_WORKER_MODE: worker
+      DISABLE_MEDUSA_ADMIN: "true"
+      NODE_OPTIONS: --max-old-space-size=384
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    # edge gives the worker outbound internet for mail and payment APIs
+    networks: [edge, data]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  storefront:
+    image: ${STOREFRONT_IMAGE:?STOREFRONT_IMAGE is required}
+    restart: unless-stopped
+    init: true
+    environment:
+      TZ: ${TZ:-UTC}
+      MEDUSA_INTERNAL_BACKEND_URL: http://medusa-server:9000
+      NODE_OPTIONS: --max-old-space-size=256
+    depends_on:
+      medusa-server: { condition: service_healthy }
+    networks: [edge]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/api/health | grep -q ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  nginx:
+    image: nginx:1.30.6-alpine
+    restart: unless-stopped
+    # Reloads periodically so renewed certificates are picked up
+    command:
+      - /bin/sh
+      - -c
+      - |
+        (while :; do sleep 6h; nginx -s reload; done) &
+        exec /docker-entrypoint.sh nginx -g 'daemon off;'
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/docker/nginx/snippets:/etc/nginx/snippets:ro
+      - ./infra/docker/nginx/templates:/etc/nginx/templates:ro
+      - certs:/etc/letsencrypt:ro
+      - acme:/var/www/certbot:ro
+    depends_on:
+      medusa-server: { condition: service_healthy }
+      storefront: { condition: service_healthy }
+    networks: [edge]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health | grep -q ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+  # Attempts renewal twice a day; certbot only renews when close to expiry.
+  certbot:
+    image: certbot/certbot:v5.9.0
+    restart: unless-stopped
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        trap exit TERM
+        while :; do
+          certbot renew --webroot -w /var/www/certbot --quiet
+          sleep 12h & wait $$!
+        done
+    volumes:
+      - certs:/etc/letsencrypt
+      - acme:/var/www/certbot
+    networks: [edge]
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+networks:
+  edge:
+  # No route to the internet: Postgres and Redis are reachable only from here
+  data:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_queue_data:
+  uploads:
+  certs:
+  acme:

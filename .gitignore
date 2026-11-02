@@ -1,0 +1,98 @@
+# ============================================================
+# Node.js
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+.medusa/
+out/
+
+# TypeScript
+*.tsbuildinfo
+
+# ============================================================
+# Environment — never commit secrets
+# ============================================================
+.env
+.env.local
+.env.*.local
+.envrc
+# Keep examples tracked
+!.env.example
+!.env.staging.example
+!.env.production.example
+
+# ============================================================
+# SSL certificates — generated locally or by Certbot
+# ============================================================
+infra/docker/nginx/ssl/*.pem
+infra/docker/nginx/ssl/*.key
+infra/docker/nginx/ssl/*.crt
+infra/docker/nginx/ssl/*.csr
+
+# ============================================================
+# Docker
+# ============================================================
+# Certbot volumes on VPS (never in repo)
+certbot/
+
+# ============================================================
+# Coverage & test artifacts
+# ============================================================
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+htmlcov/
+.coverage
+.cache
+.pytest_cache/
+
+# ============================================================
+# IDE & editors
+# ============================================================
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+logs/
+
+# ============================================================
+# Misc Python (from initial template — kept for tooling compat)
+# ============================================================
+__pycache__/
+*.py[codz]
+.venv
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+cython_debug/
+.pdm-python
+.pixi
+
+# ============================================================
+# Uploads / media (mounted as Docker volumes)
+# ============================================================
+apps/backend/uploads/
+
+# Local file uploads
+apps/backend/static/

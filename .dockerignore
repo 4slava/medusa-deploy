@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/.medusa
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+.git
+.github
+.claude
+docs
+infra
+*.md
+Makefile
+docker-compose*.yml

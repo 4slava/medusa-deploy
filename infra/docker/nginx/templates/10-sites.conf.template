@@ -1,0 +1,80 @@
+# The nginx image expands ${DOMAIN} here at start and writes the result to
+# conf.d. nginx's own $variables are left alone.
+
+# Unknown hostnames and direct-IP requests get no certificate and no response.
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    include /etc/nginx/snippets/security-headers.conf;
+
+    set $storefront http://storefront:8000;
+
+    location /_next/static/ {
+        access_log off;
+        proxy_pass $storefront;
+    }
+
+    location = /api/health {
+        access_log off;
+        proxy_pass $storefront;
+    }
+
+    location / {
+        limit_req zone=site burst=60 nodelay;
+        proxy_pass $storefront;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name api.${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    include /etc/nginx/snippets/security-headers.conf;
+
+    set $medusa http://medusa-server:9000;
+
+    location = /health {
+        access_log off;
+        proxy_pass $medusa;
+    }
+
+    # Admin and customer login: slow enough to blunt password guessing
+    location ~ ^/auth/[^/]+/[^/]+$ {
+        limit_req zone=auth burst=10 nodelay;
+        proxy_pass $medusa;
+    }
+
+    location / {
+        limit_req zone=api burst=100 nodelay;
+        proxy_pass $medusa;
+    }
+}
+
+# One canonical address, so CORS and cookies only ever see DOMAIN
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name www.${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    include /etc/nginx/snippets/security-headers.conf;
+
+    return 301 https://${DOMAIN}$request_uri;
+}
