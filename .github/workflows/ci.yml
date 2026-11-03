@@ -36,8 +36,9 @@ jobs:
       - name: Check shell scripts
         run: shellcheck -x -S warning infra/scripts/*.sh infra/tests/*.sh
 
+      # .env.example leaves the secrets empty, and compose requires them
       - name: Check compose file
-        run: cp .env.example .env && docker compose config -q
+        run: DOMAIN=shop.example.com infra/scripts/init-env.sh && docker compose config -q
 
   backend:
     name: Backend tests
