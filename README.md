@@ -1,5 +1,7 @@
 # medusa-deploy
 
+[![CI](https://github.com/4slava/medusa-deploy/actions/workflows/ci.yml/badge.svg)](https://github.com/4slava/medusa-deploy/actions/workflows/ci.yml)
+
 Production deployment of [MedusaJS 2](https://medusajs.com) on a single VPS with Docker Compose. The app code comes from Medusa's official [`dtc-starter`](https://github.com/medusajs/dtc-starter); this repo adds the images, stack, and operations around it.
 
 | Service | Role |
