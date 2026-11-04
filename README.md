@@ -16,6 +16,8 @@ Production deployment of [MedusaJS 2](https://medusajs.com) on a single VPS with
 | `redis-cache` | Disposable cache (`allkeys-lru`) |
 | `certbot` | Renews the Let's Encrypt certificate |
 
+The apps here are a working reference store. To deploy your own shop's code from a separate repository, see [Deploying your own store code](docs/deployment.md#deploying-your-own-store-code).
+
 ## Local development
 
 Requires Node 24 and pnpm 10.

@@ -199,6 +199,31 @@ Pushing a tag such as `v1.2.3` runs `.github/workflows/cd-production.yml`. Creat
 | Variable | `DOMAIN` | `shop.example.com` |
 | Variable | `PUBLISHABLE_KEY` | Output of `infra/scripts/publishable-key.sh` on the server |
 
+### Deploying your own store code
+
+The apps in this repository are a reference store. Your shop's code (branding, storefront pages, backend modules, payment and shipping providers, store setup) belongs in a repository of its own. That way, this one stays generic and can be updated separately.
+
+Start the store repository from this one's apps and workspace files, then point releases at it:
+
+```bash
+make release APP_DIR=../my-store
+```
+
+`APP_DIR` is absolute or relative to this repository. The image tag names the store repository's commit and ends in `-dirty` when the build had uncommitted changes. The automated deploy workflow above still builds this repository's apps.
+
+The store repository has to keep the layout and behaviour that the compose file and scripts rely on:
+
+| | Backend image | Storefront image |
+|---|---|---|
+| Dockerfile | `apps/backend/Dockerfile`, built from the repository root | `apps/storefront/Dockerfile`, built from the repository root |
+| Start | `medusa start` on port 9000. `MEDUSA_WORKER_MODE` selects server or worker. | Port 8000 |
+| Health | `GET /health` returns `OK` | `GET /api/health` returns 200 |
+| Migrations | `node_modules/.bin/medusa db:migrate` | |
+| Settings | Reads the environment set in `docker-compose.yml`: `DATABASE_URL`, `REDIS_URL`, `CACHE_REDIS_URL`, `S3_*`, `SENDGRID_*` | Build arguments `NEXT_PUBLIC_MEDUSA_BACKEND_URL`, `NEXT_PUBLIC_BASE_URL`, `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` |
+| Files | Uploads in `/app/apps/backend/static` | |
+
+Store configuration that must exist in every environment, such as regions, currencies and shipping options, fits best in a Medusa migration script (`apps/backend/src/migration-scripts/`). Each script runs once, during the migrate step of a release, and Medusa records that it ran.
+
 ## Changing the domain
 
 The domain is set in one place, `DOMAIN` in `/opt/medusa/.env`. The storefront image also contains it, so a change needs a new certificate and a release. Below, `new.example.com` is the new domain and `old.example.com` the current one.

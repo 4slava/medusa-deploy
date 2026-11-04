@@ -4,6 +4,8 @@
 # Set in the environment, for example: export DEPLOY_TARGET=shop-deploy
 DEPLOY_TARGET ?=
 DEPLOY_PORT   ?=
+# Another repository with the same apps/ layout to deploy instead of this one's
+APP_DIR       ?=
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "%-12s %s\n", $$1, $$2}'
@@ -24,4 +26,4 @@ sync: ## Copy the compose file and server scripts to the server
 	DEPLOY_TARGET=$(DEPLOY_TARGET) DEPLOY_PORT=$(DEPLOY_PORT) bash infra/scripts/release.sh --sync-only
 
 release: ## Build images locally and deploy them to the server
-	DEPLOY_TARGET=$(DEPLOY_TARGET) DEPLOY_PORT=$(DEPLOY_PORT) bash infra/scripts/release.sh
+	DEPLOY_TARGET=$(DEPLOY_TARGET) DEPLOY_PORT=$(DEPLOY_PORT) APP_DIR=$(APP_DIR) bash infra/scripts/release.sh
