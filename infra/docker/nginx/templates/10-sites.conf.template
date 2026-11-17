@@ -30,6 +30,13 @@ server {
         proxy_pass $storefront;
     }
 
+    # Login, registration and password reset: POSTs only, see nginx.conf
+    location ~ ^/account/(login|register|reset-password) {
+        limit_req zone=forms burst=10 nodelay;
+        limit_req zone=site burst=60 nodelay;
+        proxy_pass $storefront;
+    }
+
     location / {
         limit_req zone=site burst=60 nodelay;
         proxy_pass $storefront;
@@ -53,8 +60,9 @@ server {
         proxy_pass $medusa;
     }
 
-    # Admin and customer login: slow enough to blunt password guessing
-    location ~ ^/auth/[^/]+/[^/]+$ {
+    # Every auth route (login, register, password reset, session): slow enough
+    # to blunt password guessing and reset-email floods
+    location ^~ /auth/ {
         limit_req zone=auth burst=10 nodelay;
         proxy_pass $medusa;
     }
