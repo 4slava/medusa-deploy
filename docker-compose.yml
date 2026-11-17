@@ -25,6 +25,8 @@ x-medusa-env: &medusa-env
   COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET is required}
   MEDUSA_BACKEND_URL: https://api.${DOMAIN}
   STORE_CORS: https://${DOMAIN}
+  # Links in customer emails, such as password reset, point here
+  STOREFRONT_URL: https://${DOMAIN}
   ADMIN_CORS: https://api.${DOMAIN}
   AUTH_CORS: https://api.${DOMAIN},https://${DOMAIN}
   S3_BUCKET: ${S3_BUCKET:-}
@@ -174,6 +176,11 @@ services:
     environment:
       TZ: ${TZ:-UTC}
       MEDUSA_INTERNAL_BACKEND_URL: http://medusa-server:9000
+      # Read at runtime by storefronts that take their settings from the
+      # environment; the bundled Next.js one bakes them in at build time.
+      MEDUSA_BACKEND_URL: https://api.${DOMAIN}
+      STOREFRONT_URL: https://${DOMAIN}
+      MEDUSA_PUBLISHABLE_KEY: ${PUBLISHABLE_KEY:-}
       NODE_OPTIONS: --max-old-space-size=256
     depends_on:
       medusa-server: { condition: service_healthy }

@@ -17,6 +17,7 @@ ACME_EMAIL=${ACME_EMAIL:-}
 TZ=UTC
 BACKEND_IMAGE=medusa-backend:none
 STOREFRONT_IMAGE=medusa-storefront:none
+PUBLISHABLE_KEY=
 POSTGRES_USER=medusa
 POSTGRES_DB=medusa
 POSTGRES_PASSWORD=$(secret)

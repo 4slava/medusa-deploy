@@ -55,4 +55,7 @@ docker build -f "$app_dir/apps/storefront/Dockerfile" -t "medusa-storefront:$tag
   --build-arg "NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=$key" "$app_dir"
 ship "medusa-storefront:$tag"
 
+# Storefronts configured at runtime read the key from .env (MEDUSA_PUBLISHABLE_KEY)
+"${ssh_cmd[@]}" "cd $remote_dir && { grep -q '^PUBLISHABLE_KEY=' .env || echo PUBLISHABLE_KEY= >> .env; } && sed -i 's|^PUBLISHABLE_KEY=.*|PUBLISHABLE_KEY=$key|' .env"
+
 "${ssh_cmd[@]}" "cd $remote_dir && infra/scripts/deploy.sh medusa-backend:$tag medusa-storefront:$tag"
