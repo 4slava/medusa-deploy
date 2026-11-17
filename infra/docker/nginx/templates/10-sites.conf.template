@@ -30,6 +30,14 @@ server {
         proxy_pass $storefront;
     }
 
+    # Marketplace feed kept at its old address (the seller cabinet cannot
+    # change it). Served, not redirected, in case the fetcher does not follow
+    # redirects. Without such a backend route it is just a 404.
+    location = /rozetka.xml {
+        set $medusa_feed http://medusa-server:9000;
+        proxy_pass $medusa_feed/feeds/rozetka.xml;
+    }
+
     # Login, registration and password reset: POSTs only, see nginx.conf
     location ~ ^/account/(login|register|reset-password) {
         limit_req zone=forms burst=10 nodelay;
@@ -84,5 +92,14 @@ server {
 
     include /etc/nginx/snippets/security-headers.conf;
 
-    return 301 https://${DOMAIN}$request_uri;
+    set $medusa http://medusa-server:9000;
+
+    # The marketplace feed's old address, see the main site above
+    location = /rozetka.xml {
+        proxy_pass $medusa/feeds/rozetka.xml;
+    }
+
+    location / {
+        return 301 https://${DOMAIN}$request_uri;
+    }
 }
