@@ -37,6 +37,12 @@ x-medusa-env: &medusa-env
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
   SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
   SENDGRID_FROM: ${SENDGRID_FROM:-}
+  # Brevo transactional email, for apps that support it (see .env.example)
+  BREVO_API_KEY: ${BREVO_API_KEY:-}
+  MAIL_FROM: ${MAIL_FROM:-}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
+  MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+  SHOP_ORDERS_EMAIL: ${SHOP_ORDERS_EMAIL:-}
 
 services:
 

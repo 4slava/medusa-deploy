@@ -219,7 +219,7 @@ The store repository has to keep the layout and behaviour that the compose file 
 | Start | `medusa start` on port 9000. `MEDUSA_WORKER_MODE` selects server or worker. | Port 8000 |
 | Health | `GET /health` returns `OK` | `GET /api/health` returns 200 |
 | Migrations | `node_modules/.bin/medusa db:migrate` | |
-| Settings | Reads the environment set in `docker-compose.yml`: `DATABASE_URL`, `REDIS_URL`, `CACHE_REDIS_URL`, `S3_*`, `SENDGRID_*` | Build arguments `NEXT_PUBLIC_MEDUSA_BACKEND_URL`, `NEXT_PUBLIC_BASE_URL`, `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` |
+| Settings | Reads the environment set in `docker-compose.yml`: `DATABASE_URL`, `REDIS_URL`, `CACHE_REDIS_URL`, `S3_*`, `SENDGRID_*` (or `BREVO_API_KEY`, `MAIL_*`, `SHOP_ORDERS_EMAIL` for an app that sends through Brevo) | Build arguments `NEXT_PUBLIC_MEDUSA_BACKEND_URL`, `NEXT_PUBLIC_BASE_URL`, `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` |
 | Files | Uploads in `/app/apps/backend/static` | |
 
 Store configuration that must exist in every environment, such as regions, currencies and shipping options, fits best in a Medusa migration script (`apps/backend/src/migration-scripts/`). Each script runs once, during the migrate step of a release, and Medusa records that it ran.
