@@ -43,6 +43,9 @@ x-medusa-env: &medusa-env
   MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
   MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
   SHOP_ORDERS_EMAIL: ${SHOP_ORDERS_EMAIL:-}
+  # Telegram notices to the shop, for apps that support them
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
 
 services:
 
